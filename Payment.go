@@ -3,7 +3,8 @@ package main
 import "time"
 
 type Payment struct {
-	Date     time.Time
+	Stamp    time.Time
+	Date     string
 	Year     string
 	Month    string
 	Name     string
@@ -12,3 +13,14 @@ type Payment struct {
 	Debit    float32
 	Credit   float32
 }
+
+const (
+	Unknown   = 0
+	Tangerine = 1
+	CIBC
+	RBC
+)
+
+const (
+	DateLayout = "01-Jan-2000"
+)

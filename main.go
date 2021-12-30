@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -43,6 +44,12 @@ func main() {
 		}
 
 		fmt.Println("Found " + strconv.Itoa(len(dirChild)))
+		if len(dirChild) == 0 {
+			fmt.Println("Nothing to do in " + childDirPath)
+			continue
+		}
+
+		var allTime []Payment
 
 		for _, filePath := range dirChild {
 			file, err := os.Open(childDirPath + "/" + filePath.Name())
@@ -54,13 +61,84 @@ func main() {
 
 			scanner := bufio.NewScanner(file)
 
+			var sourceInstitution = 0
+			var isFirstLine = true
 			for scanner.Scan() {
 				// CSV
-				csvLines := strings.Split(scanner.Text(), ",")
-				fmt.Println(scanner.Text())
-				fmt.Println(csvLines)
+				csvLine := strings.Split(scanner.Text(), ",")
+				fmt.Println(csvLine)
+
+				if sourceInstitution == Unknown {
+					sourceInstitution = detectSourcePattern(file.Name(), csvLine)
+				}
+
+				switch sourceInstitution {
+				case Unknown:
+					break
+				case Tangerine:
+					if isFirstLine {
+						isFirstLine = false
+						continue
+					}
+
+					tangerinePayment := convertTangerineLineToPayment(csvLine)
+					fmt.Println(tangerinePayment)
+					allTime = append(allTime, tangerinePayment)
+				}
 			}
 		}
 	}
+}
 
+func detectSourcePattern(filename string, line []string) int {
+	if strings.Contains(filename, "World Mastercard") &&
+		line[0] == "Transaction date" &&
+		line[3] == "Memo" {
+		return Tangerine
+	}
+	return Unknown
+}
+
+func convertTangerineLineToPayment(csvLine []string) Payment {
+
+	dateSplit := strings.Split(csvLine[0], "/")
+
+	year, _ := strconv.Atoi(dateSplit[2])
+	month, _ := strconv.Atoi(dateSplit[1])
+	day, _ := strconv.Atoi(dateSplit[0])
+	//Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location)
+	stamp := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+
+	tangerinePayment := Payment{
+		Stamp:    stamp,
+		Date:     csvLine[0],
+		Year:     dateSplit[2],
+		Month:    time.Month(month).String(),
+		Name:     csvLine[2],
+		Category: "",
+		Cashback: 0,
+		Debit:    0,
+		Credit:   0,
+	}
+
+	if csvLine[1] == "DEBIT" {
+		amount, _ := strconv.ParseFloat(csvLine[4], 32)
+
+		memo := strings.Split(csvLine[3], "~")
+		memoCash := strings.Split(memo[0], ":")
+		cashback, _ := strconv.ParseFloat(memoCash[1], 32)
+
+		memoCategory := strings.Split(memo[1], ":")
+		category := memoCategory[1]
+
+		test, _ := strconv.ParseFloat("1,223", 32)
+		test2, _ := strconv.ParseFloat(" 1.0223", 32)
+		fmt.Println(test + test2)
+
+		tangerinePayment.Debit = float32(amount)
+		tangerinePayment.Cashback = float32(cashback)
+		tangerinePayment.Category = category
+	}
+
+	return tangerinePayment
 }
