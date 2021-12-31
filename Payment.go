@@ -20,7 +20,3 @@ const (
 	CIBC
 	RBC
 )
-
-const (
-	DateLayout = "01-Jan-2000"
-)
