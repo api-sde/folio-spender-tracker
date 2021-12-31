@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/csv"
 	"fmt"
 	"log"
 	"os"
@@ -43,13 +44,16 @@ func main() {
 			log.Fatal(err)
 		}
 
-		fmt.Println("Found " + strconv.Itoa(len(dirChild)))
+		fmt.Println("Found " + strconv.Itoa(len(dirChild)) + " files.")
 		if len(dirChild) == 0 {
 			fmt.Println("Nothing to do in " + childDirPath)
 			continue
 		}
 
 		var allTime []Payment
+		var allFilesLinesCount int
+		var headerNomenclatureLines int
+		var missingFiles []string
 
 		for _, filePath := range dirChild {
 			file, err := os.Open(childDirPath + "/" + filePath.Name())
@@ -57,6 +61,7 @@ func main() {
 
 			if err != nil {
 				log.Printf("Unable to read file %s : %s\n", file.Name(), err)
+				missingFiles = append(missingFiles, file.Name())
 			}
 
 			scanner := bufio.NewScanner(file)
@@ -64,9 +69,12 @@ func main() {
 			var sourceInstitution = 0
 			var isFirstLine = true
 			for scanner.Scan() {
+
+				allFilesLinesCount = allFilesLinesCount + 1
+
 				// CSV
 				csvLine := strings.Split(scanner.Text(), ",")
-				fmt.Println(csvLine)
+				//fmt.Println(csvLine)
 
 				if sourceInstitution == Unknown {
 					sourceInstitution = detectSourcePattern(file.Name(), csvLine)
@@ -77,6 +85,7 @@ func main() {
 					break
 				case Tangerine:
 					if isFirstLine {
+						headerNomenclatureLines = headerNomenclatureLines + 1
 						isFirstLine = false
 						continue
 					}
@@ -84,10 +93,81 @@ func main() {
 					tangerinePayment := convertTangerineLineToPayment(csvLine)
 					fmt.Println(tangerinePayment)
 					allTime = append(allTime, tangerinePayment)
+				case CIBC:
+					cibcPayment := Payment{}
+					allTime = append(allTime, cibcPayment)
 				}
 			}
 		}
+
+		ValidateFilesAndLinesSum(len(allTime), allFilesLinesCount, headerNomenclatureLines, missingFiles)
+
+		var combinedCsvLines []string
+		var recordCsv [][]string
+
+		header := []string{"Date", "Year", "Month", "Name", "Category", "Cashback", "Debit", "Credit"}
+		recordCsv = append(recordCsv, header)
+		
+		for _, payment := range allTime {
+			line := fmt.Sprintf(
+				"%s,%s,%s,%s,%s,%s,%s,%s",
+				payment.Date,
+				payment.Year,
+				payment.Month,
+				payment.Name,
+				payment.Category,
+				//payment.Cashback.ToText(),
+				//payment.Debit.ToText(),
+				//payment.Credit.ToText(),
+			)
+			combinedCsvLines = append(combinedCsvLines, line)
+
+			debit := ""
+			credit := ""
+			cashback := ""
+
+			if payment.Debit != nil {
+				debit = payment.Debit.ToText()
+			}
+			if payment.Credit != nil {
+				credit = payment.Credit.ToText()
+			}
+			if payment.Cashback != nil {
+				cashback = payment.Cashback.ToText()
+			}
+
+			csvLine := []string{
+				payment.Date,
+				payment.Year,
+				payment.Month,
+				payment.Name,
+				payment.Category,
+				cashback,
+				debit,
+				credit,
+			}
+
+			recordCsv = append(recordCsv, csvLine)
+		}
+
+		resultFilename := "testResult.csv"
+		file, err := os.Create(resultFilename)
+		defer file.Close()
+		if err != nil {
+			fmt.Println("failed to create CSV file")
+		}
+
+		csvWriter := csv.NewWriter(file)
+		defer csvWriter.Flush()
+
+		err = csvWriter.WriteAll(recordCsv)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		fmt.Println("Created " + resultFilename)
 	}
+
 }
 
 func detectSourcePattern(filename string, line []string) int {
@@ -95,6 +175,8 @@ func detectSourcePattern(filename string, line []string) int {
 		line[0] == "Transaction date" &&
 		line[3] == "Memo" {
 		return Tangerine
+	} else if strings.Contains(filename, "cibc") {
+		return CIBC
 	}
 	return Unknown
 }
@@ -146,4 +228,26 @@ func convertTangerineLineToPayment(csvLine []string) Payment {
 	}
 
 	return tangerinePayment
+}
+
+func convertCIBCLineToPayment(csvLine []string) Payment {
+	return Payment{}
+}
+
+func ValidateFilesAndLinesSum(allLinesCount int, allFilesLinesCount int, headerLines int, missingFiles []string) {
+	fmt.Printf("Done processing, found %v lines\n", allLinesCount)
+	fmt.Printf("Number of lines across all files: %v, with nomenclature lines: %v \n", allFilesLinesCount, headerLines)
+
+	if allLinesCount+headerLines == allFilesLinesCount {
+		fmt.Println("Validation OK, successfully read all lines.")
+	} else {
+		fmt.Println("Invalid files, some lines are missing.")
+	}
+
+	if len(missingFiles) > 0 {
+		fmt.Println("Error: some files were missing:")
+		for _, miss := range missingFiles {
+			fmt.Println(miss)
+		}
+	}
 }

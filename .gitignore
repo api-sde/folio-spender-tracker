@@ -19,3 +19,4 @@
 .idea/folio-spender-tracker.iml
 .idea/modules.xml
 .idea/vcs.xml
+*.csv

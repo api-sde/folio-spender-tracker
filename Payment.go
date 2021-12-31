@@ -17,6 +17,6 @@ type Payment struct {
 const (
 	Unknown   = 0
 	Tangerine = 1
-	CIBC
-	RBC
+	CIBC      = 2
+	RBC       = 3
 )
