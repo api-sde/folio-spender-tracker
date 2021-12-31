@@ -110,15 +110,11 @@ func convertTangerineLineToPayment(csvLine []string) Payment {
 	stamp := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
 
 	tangerinePayment := Payment{
-		Stamp:    stamp,
-		Date:     csvLine[0],
-		Year:     dateSplit[2],
-		Month:    time.Month(month).String(),
-		Name:     csvLine[2],
-		Category: "",
-		Cashback: 0,
-		Debit:    0,
-		Credit:   0,
+		Stamp: stamp,
+		Date:  csvLine[0],
+		Year:  dateSplit[2],
+		Month: time.Month(month).String(),
+		Name:  csvLine[2],
 	}
 
 	if csvLine[1] == "DEBIT" {

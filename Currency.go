@@ -2,6 +2,7 @@ package main
 
 import (
 	"strconv"
+	"strings"
 )
 
 type Currency struct {
@@ -14,6 +15,32 @@ type Amount struct {
 	sum      int64 // Hundreds of Nominal + Cent for calculations
 	Nominal  int64 // To do: Check for the actual economic definition, seems better than Main
 	Cent     int64
+}
+
+func ParseNewAmount(textAmount string) (*Amount, error) {
+	return ParseNewAmountWithCurrency(textAmount, Currency{})
+}
+
+func ParseNewAmountWithCurrency(textAmount string, currency Currency) (*Amount, error) {
+	newAmount := new(Amount)
+
+	if currency.Ticker != "" {
+		newAmount.Currency = currency
+	}
+
+	if textAmount != "" {
+		parts := strings.Split(textAmount, ".")
+
+		if len(parts) == 1 {
+			nominal, err := strconv.Atoi(parts[0])
+			if err != nil {
+				return nil, err
+			}
+
+			newAmount.SetNominal(int64(nominal))
+		}
+
+	}
 }
 
 func (amount Amount) Sum() int64 {
