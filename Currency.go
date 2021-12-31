@@ -89,10 +89,14 @@ func (amount Amount) Sum() int64 {
 }
 
 func (amount *Amount) updateSum() {
-	amount.sum = amount.Nominal*100 + amount.Cent
+	amount.sum = (amount.Nominal * 100) + amount.Cent
 }
 
 func (amount *Amount) SetNominal(nominal int64) int64 {
+	if nominal < 0 {
+		nominal = nominal * -1
+	}
+
 	amount.Nominal = nominal
 	amount.updateSum()
 
@@ -100,6 +104,10 @@ func (amount *Amount) SetNominal(nominal int64) int64 {
 }
 
 func (amount *Amount) SetCent(cent int64) int64 {
+	if cent < 0 {
+		cent = cent * -1
+	}
+
 	if cent > 99 {
 		centRemainder := cent % 100
 		amount.Nominal += (cent - centRemainder) / 100
@@ -113,7 +121,12 @@ func (amount *Amount) SetCent(cent int64) int64 {
 }
 
 func (amount Amount) ToText() string {
-	return strconv.FormatInt(amount.Nominal, 10) + "." + strconv.FormatInt(amount.Cent, 10)
+	var cent string = strconv.FormatInt(amount.Cent, 10)
+	if amount.Cent < 9 {
+		cent = "0" + cent
+	}
+
+	return strconv.FormatInt(amount.Nominal, 10) + "." + cent
 }
 
 func (amount Amount) ToTextCurrency() string {

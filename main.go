@@ -121,25 +121,28 @@ func convertTangerineLineToPayment(csvLine []string) Payment {
 
 	if csvLine[1] == "DEBIT" {
 		amount, errAmount := ParseNewAmount(csvLine[4])
+		tangerinePayment.Debit = amount
 		if errAmount != nil {
 			fmt.Printf("Error while parsing amount line: %s\n", csvLine[4])
 		}
 
 		memoRewCat := strings.Split(csvLine[3], "~")
-
-		memoReward := strings.Split(memoRewCat[0], ":")
-		cashback, errCash := ParseNewAmount(memoReward[1])
-		if errCash != nil {
-			fmt.Printf("Error while parsing cashback line: %s\n", csvLine[3])
+		if len(memoRewCat) > 1 {
+			memoCategory := strings.Split(memoRewCat[1], ":")
+			tangerinePayment.Category = strings.TrimSpace(memoCategory[1])
 		}
 
-		memoCategory := strings.Split(memoRewCat[1], ":")
-		category := strings.TrimSpace(memoCategory[1])
+		memoReward := strings.Split(memoRewCat[0], ":")
+		if len(memoReward) <= 1 {
+			fmt.Printf("No cashback found for %s", csvLine)
+		} else {
+			cashback, errCash := ParseNewAmount(memoReward[1])
+			if errCash != nil {
+				fmt.Printf("Error while parsing cashback line: %s\n", csvLine[3])
+			}
 
-		tangerinePayment.Category = category
-		tangerinePayment.Debit = amount
-		tangerinePayment.Cashback = cashback
-
+			tangerinePayment.Cashback = cashback
+		}
 	}
 
 	return tangerinePayment

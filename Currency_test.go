@@ -85,6 +85,46 @@ func TestAmount_Sum(t *testing.T) {
 	if newAmount.Nominal != 3 || newAmount.Cent != 33 || newAmount.Sum() != 333 {
 		t.Error("Invalid Sum and after setting Cent")
 	}
+
+	singleDigit := Amount{}
+	singleDigit.SetCent(1)
+	if singleDigit.Nominal != 0 || singleDigit.Cent != 1 || singleDigit.Sum() != 1 {
+		t.Errorf("Invalid Sum and after setting single digit Cent: %v", singleDigit.Sum())
+	}
+
+	sumBoth := Amount{}
+	sumBoth.SetNominal(100)
+	sumBoth.SetCent(1)
+	if sumBoth.Sum() != 10001 {
+		t.Errorf("Invalid Sum and after setting Nominal & Cent: %v", sumBoth.Sum())
+	}
+}
+
+func TestAmount_Sum_Negative(t *testing.T) {
+	negativeCases := []struct {
+		nominal     int64
+		cent        int64
+		expectedSum int64
+	}{
+		{nominal: 1, cent: 95, expectedSum: 195},
+		{nominal: -1, cent: 95, expectedSum: 195},
+		{nominal: 1, cent: -95, expectedSum: 195},
+		{nominal: -1, cent: -95, expectedSum: 195},
+	}
+
+	for _, test := range negativeCases {
+		t.Run(fmt.Sprintf("Negative case: %v", test), func(t *testing.T) {
+			neg := Amount{}
+			neg.SetNominal(test.nominal)
+			neg.SetCent(test.cent)
+
+			if neg.Sum() != test.expectedSum {
+				t.Errorf("Expected %v, got %v", test.expectedSum, neg.Sum())
+				t.Log(neg)
+			}
+		})
+	}
+
 }
 
 func TestAmount_ToText(t *testing.T) {
@@ -106,6 +146,30 @@ func TestAmount_ToText(t *testing.T) {
 		fmt.Println(amount.ToText())
 	}
 
+}
+func TestAmount_ToTextWithSingleCent(t *testing.T) {
+	amount := Amount{
+		Cent: 5,
+	}
+
+	if amount.ToText() != "0.05" {
+		t.Errorf("Invalid format: %s instead of %s", amount.ToText(), "0.05")
+	}
+
+	amountNom := Amount{
+		Nominal: 2,
+		Cent:    5,
+	}
+
+	if amountNom.ToText() != "2.05" {
+		t.Errorf("Invalid format: %s instead of %s", amountNom.ToText(), "2.05")
+	}
+
+	amountOnlyCents := Amount{}
+	amountOnlyCents.SetCent(205)
+	if amountOnlyCents.ToText() != "2.05" {
+		t.Errorf("Invalid format: %s instead of %s", amountOnlyCents.ToText(), "2.05")
+	}
 }
 
 func TestAmount_ToTextCurrency(t *testing.T) {
