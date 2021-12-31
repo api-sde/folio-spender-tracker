@@ -105,9 +105,9 @@ func main() {
 		var combinedCsvLines []string
 		var recordCsv [][]string
 
-		header := []string{"Date", "Year", "Month", "Name", "Category", "Cashback", "Debit", "Credit"}
+		header := []string{"Stamp", "Date", "Year", "Month", "Name", "Category", "Cashback", "Debit", "Credit"}
 		recordCsv = append(recordCsv, header)
-		
+
 		for _, payment := range allTime {
 			line := fmt.Sprintf(
 				"%s,%s,%s,%s,%s,%s,%s,%s",
@@ -137,6 +137,7 @@ func main() {
 			}
 
 			csvLine := []string{
+				strconv.Itoa(int(payment.Stamp.Unix())),
 				payment.Date,
 				payment.Year,
 				payment.Month,
@@ -186,9 +187,12 @@ func convertTangerineLineToPayment(csvLine []string) Payment {
 	dateSplit := strings.Split(csvLine[0], "/")
 
 	year, _ := strconv.Atoi(dateSplit[2])
-	month, _ := strconv.Atoi(dateSplit[1])
-	day, _ := strconv.Atoi(dateSplit[0])
+	month, _ := strconv.Atoi(dateSplit[0])
+	day, _ := strconv.Atoi(dateSplit[1])
 
+	if month == 12 {
+		fmt.Println("Dec")
+	}
 	//Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location)
 	// To do: implement minute incrementation or iota to keep the order since there is no details coming from the CSV
 	stamp := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
@@ -201,7 +205,7 @@ func convertTangerineLineToPayment(csvLine []string) Payment {
 		Name:  csvLine[2],
 	}
 
-	if csvLine[1] == "DEBIT" {
+	if csvLine[1] == DEBIT {
 		amount, errAmount := ParseNewAmount(csvLine[4])
 		tangerinePayment.Debit = amount
 		if errAmount != nil {
@@ -225,6 +229,15 @@ func convertTangerineLineToPayment(csvLine []string) Payment {
 
 			tangerinePayment.Cashback = cashback
 		}
+	} else if csvLine[1] == CREDIT {
+		fmt.Println(csvLine)
+
+		creditAmount, errAmount := ParseNewAmount(csvLine[4])
+		tangerinePayment.Credit = creditAmount
+		if errAmount != nil {
+			fmt.Printf("Error while parsing amount line: %s\n", csvLine[4])
+		}
+
 	}
 
 	return tangerinePayment

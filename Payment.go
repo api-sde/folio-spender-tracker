@@ -20,3 +20,8 @@ const (
 	CIBC      = 2
 	RBC       = 3
 )
+
+const (
+	DEBIT  = "DEBIT"
+	CREDIT = "CREDIT"
+)
