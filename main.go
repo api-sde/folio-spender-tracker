@@ -118,18 +118,18 @@ func convertTangerineLineToPayment(csvLine []string) Payment {
 	}
 
 	if csvLine[1] == "DEBIT" {
-		amount, _ := strconv.ParseFloat(csvLine[4], 32)
+		//amount, _ := strconv.ParseFloat(csvLine[4], 32)
 
 		memoRewCat := strings.Split(csvLine[3], "~")
 
-		memoReward := strings.Split(memoRewCat[0], ":")
-		cashback, _ := strconv.ParseFloat(strings.TrimSpace(memoReward[1]), 32)
+		//memoReward := strings.Split(memoRewCat[0], ":")
+		//cashback, _ := strconv.ParseFloat(strings.TrimSpace(memoReward[1]), 32)
 
 		memoCategory := strings.Split(memoRewCat[1], ":")
 		category := strings.TrimSpace(memoCategory[1])
 
-		tangerinePayment.Debit = float32(amount)
-		tangerinePayment.Cashback = float32(cashback)
+		//tangerinePayment.Debit = float32(amount)
+		//tangerinePayment.Cashback = float32(cashback)
 		tangerinePayment.Category = category
 	}
 

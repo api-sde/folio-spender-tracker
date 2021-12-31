@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 )
@@ -18,29 +19,69 @@ type Amount struct {
 }
 
 func ParseNewAmount(textAmount string) (*Amount, error) {
-	return ParseNewAmountWithCurrency(textAmount, Currency{})
+	newAmount := new(Amount)
+
+	if textAmount == "" {
+		return nil, errors.New("empty text amount")
+	}
+
+	textAmount = strings.ReplaceAll(textAmount, " ", "")
+
+	var parts []string
+	if strings.Contains(textAmount, ".") {
+		parts = strings.Split(textAmount, ".")
+	} else if strings.Contains(textAmount, ",") {
+		parts = strings.Split(textAmount, ",")
+	} else {
+		parts = append(parts, textAmount)
+	}
+
+	switch len(parts) {
+	case 1:
+		nominal, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return nil, err
+		}
+		newAmount.SetNominal(int64(nominal))
+
+	case 2:
+		nominal, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return nil, err
+		}
+
+		cent, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return nil, err
+		}
+
+		newAmount.SetNominal(int64(nominal))
+		newAmount.SetCent(int64(cent))
+
+	default:
+		return nil, errors.New("Invalid amount, failed to parse: " + textAmount)
+	}
+
+	return newAmount, nil
 }
 
 func ParseNewAmountWithCurrency(textAmount string, currency Currency) (*Amount, error) {
-	newAmount := new(Amount)
+
+	tickerSpaceIndex := strings.LastIndex(textAmount, " ")
+	onlyAmount, ticker := textAmount[:tickerSpaceIndex], textAmount[tickerSpaceIndex:]
+
+	newAmount, err := ParseNewAmount(onlyAmount)
+	if err != nil {
+		return nil, err
+	}
 
 	if currency.Ticker != "" {
 		newAmount.Currency = currency
+	} else if trimmedTicker := strings.TrimSpace(ticker); trimmedTicker != "" {
+		newAmount.Currency = Currency{Ticker: trimmedTicker}
 	}
 
-	if textAmount != "" {
-		parts := strings.Split(textAmount, ".")
-
-		if len(parts) == 1 {
-			nominal, err := strconv.Atoi(parts[0])
-			if err != nil {
-				return nil, err
-			}
-
-			newAmount.SetNominal(int64(nominal))
-		}
-
-	}
+	return newAmount, nil
 }
 
 func (amount Amount) Sum() int64 {

@@ -141,3 +141,90 @@ func TestAmount_ToTextCurrencyMissingTicker(t *testing.T) {
 		fmt.Println(amount.ToTextCurrency())
 	}
 }
+
+func TestParseNewAmount(t *testing.T) {
+
+	oneNominalAmount := Amount{}
+	oneNominalAmount.SetNominal(1)
+
+	oneDollarOneCent := Amount{}
+	oneDollarOneCent.SetCent(101)
+
+	oneDollarTenCent := Amount{}
+	oneDollarTenCent.SetCent(110)
+
+	ninetyNine := Amount{}
+	ninetyNine.SetCent(99)
+
+	testCases := []struct {
+		amount       string
+		expected     Amount
+		errorMessage string
+	}{
+		{"1", oneNominalAmount, ""},
+		{"01", oneNominalAmount, ""},
+		{" 1", oneNominalAmount, ""},
+		{"1 CAD", Amount{}, "strconv.Atoi: parsing \"1CAD\": invalid syntax"},
+		{"1.01", oneDollarOneCent, ""},
+		{" 1.01", oneDollarOneCent, ""},
+		{" 1.01 ", oneDollarOneCent, ""},
+		{" 1. 01 ", oneDollarOneCent, ""},
+		{" 1.10 ", oneDollarTenCent, ""},
+		{" 1,10 ", oneDollarTenCent, ""},
+		{" 0,99 ", ninetyNine, ""},
+		{" 0.99 ", ninetyNine, ""},
+	}
+
+	for _, test := range testCases {
+		t.Run("Test amount: "+test.amount, func(t *testing.T) {
+			result, err := ParseNewAmount(test.amount)
+
+			if err != nil {
+				errorMessage := err.Error()
+				if errorMessage != test.errorMessage {
+					t.Errorf("Unexpected error message: %s", errorMessage)
+				} else {
+					t.Logf("Expected error message: %s", errorMessage)
+					return
+				}
+
+				if result == nil {
+					t.Errorf("nil result, stopping test.")
+					return
+				}
+			}
+
+			if result.Sum() != test.expected.Sum() {
+				t.Errorf("Unexpected Sum: %v instead of %v", result.Sum(), test.expected.Sum())
+			}
+
+			if result.Nominal != test.expected.Nominal {
+				t.Errorf("Unexpected Nominal: %v instead of %v", result.Nominal, test.expected.Nominal)
+			}
+
+			if result.Cent != test.expected.Cent {
+				t.Errorf("Unexpected Cent: %v instead of %v", result.Cent, test.expected.Cent)
+			}
+		})
+	}
+}
+
+func TestParseNewAmountWithCurrency(t *testing.T) {
+	result, err := ParseNewAmountWithCurrency("1 CAD", Currency{})
+	if result == nil || result.Nominal != 1 || result.Currency.Ticker != "CAD" {
+		t.Errorf("Invalid result: %v, expected %s", result, "1 CAD")
+		t.Log(err)
+	}
+
+	resultCurr, err := ParseNewAmountWithCurrency("1 ", Currency{Ticker: "CAD"})
+	if resultCurr == nil || resultCurr.Nominal != 1 || resultCurr.Currency.Ticker != "CAD" {
+		t.Errorf("Invalid result: %v, expected %s", result, "1 CAD")
+		t.Log(err)
+	}
+
+	resultNoTicker, err := ParseNewAmountWithCurrency("1 ", Currency{})
+	if resultNoTicker == nil || resultNoTicker.Nominal != 1 {
+		t.Errorf("Invalid result: %v, expected %s", resultNoTicker, "1")
+		t.Log(err)
+	}
+}
