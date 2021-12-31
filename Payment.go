@@ -9,9 +9,9 @@ type Payment struct {
 	Month    string
 	Name     string
 	Category string
-	Cashback Amount
-	Debit    Amount
-	Credit   Amount
+	Cashback *Amount
+	Debit    *Amount
+	Credit   *Amount
 }
 
 const (

@@ -106,7 +106,9 @@ func convertTangerineLineToPayment(csvLine []string) Payment {
 	year, _ := strconv.Atoi(dateSplit[2])
 	month, _ := strconv.Atoi(dateSplit[1])
 	day, _ := strconv.Atoi(dateSplit[0])
+
 	//Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location)
+	// To do: implement minute incrementation or iota to keep the order since there is no details coming from the CSV
 	stamp := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
 
 	tangerinePayment := Payment{
@@ -118,19 +120,26 @@ func convertTangerineLineToPayment(csvLine []string) Payment {
 	}
 
 	if csvLine[1] == "DEBIT" {
-		//amount, _ := strconv.ParseFloat(csvLine[4], 32)
+		amount, errAmount := ParseNewAmount(csvLine[4])
+		if errAmount != nil {
+			fmt.Printf("Error while parsing amount line: %s\n", csvLine[4])
+		}
 
 		memoRewCat := strings.Split(csvLine[3], "~")
 
-		//memoReward := strings.Split(memoRewCat[0], ":")
-		//cashback, _ := strconv.ParseFloat(strings.TrimSpace(memoReward[1]), 32)
+		memoReward := strings.Split(memoRewCat[0], ":")
+		cashback, errCash := ParseNewAmount(memoReward[1])
+		if errCash != nil {
+			fmt.Printf("Error while parsing cashback line: %s\n", csvLine[3])
+		}
 
 		memoCategory := strings.Split(memoRewCat[1], ":")
 		category := strings.TrimSpace(memoCategory[1])
 
-		//tangerinePayment.Debit = float32(amount)
-		//tangerinePayment.Cashback = float32(cashback)
 		tangerinePayment.Category = category
+		tangerinePayment.Debit = amount
+		tangerinePayment.Cashback = cashback
+
 	}
 
 	return tangerinePayment
