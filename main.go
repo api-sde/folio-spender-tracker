@@ -56,6 +56,9 @@ func main() {
 		var missingFiles []string
 
 		for _, filePath := range dirChild {
+			if filePath.Name() == ".DS_Store" {
+				continue
+			}
 			file, err := os.Open(childDirPath + "/" + filePath.Name())
 			defer file.Close()
 
@@ -74,7 +77,6 @@ func main() {
 
 				// CSV
 				csvLine := strings.Split(scanner.Text(), ",")
-				//fmt.Println(csvLine)
 
 				if sourceInstitution == Unknown {
 					sourceInstitution = detectSourcePattern(file.Name(), csvLine)
@@ -94,7 +96,7 @@ func main() {
 					fmt.Println(tangerinePayment)
 					allTime = append(allTime, tangerinePayment)
 				case CIBC:
-					cibcPayment := Payment{}
+					var cibcPayment = convertCIBCLineToPayment(csvLine)
 					allTime = append(allTime, cibcPayment)
 				}
 			}
@@ -102,25 +104,11 @@ func main() {
 
 		ValidateFilesAndLinesSum(len(allTime), allFilesLinesCount, headerNomenclatureLines, missingFiles)
 
-		var combinedCsvLines []string
 		var recordCsv [][]string
-
 		header := []string{"Stamp", "Date", "Year", "Month", "Name", "Category", "Cashback", "Debit", "Credit"}
 		recordCsv = append(recordCsv, header)
 
 		for _, payment := range allTime {
-			line := fmt.Sprintf(
-				"%s,%s,%s,%s,%s,%s,%s,%s",
-				payment.Date,
-				payment.Year,
-				payment.Month,
-				payment.Name,
-				payment.Category,
-				//payment.Cashback.ToText(),
-				//payment.Debit.ToText(),
-				//payment.Credit.ToText(),
-			)
-			combinedCsvLines = append(combinedCsvLines, line)
 
 			debit := ""
 			credit := ""
@@ -152,7 +140,7 @@ func main() {
 		}
 
 		resultFilename := "testResult.csv"
-		file, err := os.Create(resultFilename)
+		file, err := os.Create(childDirPath + "/" + resultFilename)
 		defer file.Close()
 		if err != nil {
 			fmt.Println("failed to create CSV file")
@@ -190,9 +178,6 @@ func convertTangerineLineToPayment(csvLine []string) Payment {
 	month, _ := strconv.Atoi(dateSplit[0])
 	day, _ := strconv.Atoi(dateSplit[1])
 
-	if month == 12 {
-		fmt.Println("Dec")
-	}
 	//Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location)
 	// To do: implement minute incrementation or iota to keep the order since there is no details coming from the CSV
 	stamp := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
@@ -244,7 +229,54 @@ func convertTangerineLineToPayment(csvLine []string) Payment {
 }
 
 func convertCIBCLineToPayment(csvLine []string) Payment {
-	return Payment{}
+
+	dateSplit := strings.Split(csvLine[0], "-")
+
+	year, _ := strconv.Atoi(dateSplit[0])
+	month, _ := strconv.Atoi(dateSplit[1])
+	day, _ := strconv.Atoi(dateSplit[2])
+
+	stamp := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+
+	cibcPayment := Payment{
+		Stamp: stamp,
+		Date:  csvLine[0], // To do: get same format everywhere
+		Year:  dateSplit[0],
+		Month: time.Month(month).String(),
+		Name:  csvLine[1],
+	}
+
+	var parsing error
+
+	if strings.Contains(csvLine[1], "PAYMENT THANK YOU") {
+		credit, err := ParseNewAmount(csvLine[3])
+		parsing = err
+		cibcPayment.Credit = credit
+	} else if csvLine[1] == "CASHBACK/REMISE EN ARGENT" {
+		credit, err := ParseNewAmount(csvLine[3])
+		parsing = err
+		cibcPayment.Credit = credit
+	} else if csvLine[1] == "ANNUAL FEE" {
+		debit, err := ParseNewAmount(csvLine[2])
+		parsing = err
+		cibcPayment.Debit = debit
+	} else if csvLine[3] != "" {
+		debit, err := ParseNewAmount(csvLine[3])
+		parsing = err
+		cibcPayment.Debit = debit
+	} else if csvLine[4] != "" {
+		credit, err := ParseNewAmount(csvLine[4])
+		parsing = err
+		cibcPayment.Credit = credit
+	} else {
+		fmt.Printf("Line %s has been ignored.", csvLine)
+	}
+
+	if parsing != nil {
+		fmt.Printf("Error while parsing amount line: %s\n, %s", csvLine, parsing.Error())
+	}
+
+	return cibcPayment
 }
 
 func ValidateFilesAndLinesSum(allLinesCount int, allFilesLinesCount int, headerLines int, missingFiles []string) {
