@@ -1,6 +1,8 @@
 package main
 
-import "time"
+import (
+	"time"
+)
 
 type Payment struct {
 	Stamp    time.Time
@@ -25,3 +27,14 @@ const (
 	DEBIT  = "DEBIT"
 	CREDIT = "CREDIT"
 )
+
+func (payment Payment) GetPaymentAmount() string {
+
+	if payment.Debit != nil {
+		return payment.Debit.ToText()
+	} else if payment.Credit != nil {
+		return payment.Credit.ToText()
+	} else {
+		return ""
+	}
+}

@@ -51,6 +51,8 @@ func main() {
 		}
 
 		var allTime []Payment
+		var nameBySum map[string]string = make(map[string]string)
+
 		var allFilesLinesCount int
 		var headerNomenclatureLines int
 		var missingFiles []string
@@ -71,6 +73,7 @@ func main() {
 
 			var sourceInstitution = 0
 			var isFirstLine = true
+
 			for scanner.Scan() {
 
 				allFilesLinesCount = allFilesLinesCount + 1
@@ -82,6 +85,8 @@ func main() {
 					sourceInstitution = detectSourcePattern(file.Name(), csvLine)
 				}
 
+				var bankPayment Payment
+
 				switch sourceInstitution {
 				case Unknown:
 					break
@@ -92,12 +97,36 @@ func main() {
 						continue
 					}
 
-					tangerinePayment := convertTangerineLineToPayment(csvLine)
-					fmt.Println(tangerinePayment)
-					allTime = append(allTime, tangerinePayment)
+					bankPayment = convertTangerineLineToPayment(csvLine)
+					fmt.Println(bankPayment)
+
 				case CIBC:
-					var cibcPayment = convertCIBCLineToPayment(csvLine)
-					allTime = append(allTime, cibcPayment)
+					bankPayment = convertCIBCLineToPayment(csvLine)
+					allTime = append(allTime, bankPayment)
+				}
+
+				allTime = append(allTime, bankPayment)
+
+				if totalAmount, exist := nameBySum[bankPayment.Name]; !exist {
+					nameBySum[bankPayment.Name] = bankPayment.GetPaymentAmount()
+				} else {
+					amount, err := ParseNewAmount(totalAmount)
+					if err != nil {
+						return
+					}
+
+					var currentAmountSum int64
+					if bankPayment.Debit != nil {
+						currentAmountSum = bankPayment.Debit.Sum()
+					} else {
+						currentAmountSum = bankPayment.Credit.Sum()
+					}
+
+					newTotal := amount.Sum() + currentAmountSum
+					newTotalAmount := Amount{}
+					newTotalAmount.SetCent(newTotal)
+
+					nameBySum[bankPayment.Name] = newTotalAmount.ToText()
 				}
 			}
 		}
@@ -140,7 +169,7 @@ func main() {
 		}
 
 		resultFilename := "testResult.csv"
-		file, err := os.Create(childDirPath + "/" + resultFilename)
+		file, err := os.Create(childDirPath + "/Results/" + resultFilename)
 		defer file.Close()
 		if err != nil {
 			fmt.Println("failed to create CSV file")
@@ -155,6 +184,29 @@ func main() {
 		}
 
 		fmt.Println("Created " + resultFilename)
+
+		// ToDo refacto above & below to func
+
+		var csvCat [][]string
+		for name, sum := range nameBySum {
+			csvLine := []string{name, sum}
+			csvCat = append(csvCat, csvLine)
+		}
+
+		categoriesFilename := "CategoriesResults.csv"
+		categoryFile, err := os.Create(childDirPath + "/Results/" + categoriesFilename)
+		defer categoryFile.Close()
+		if err != nil {
+			fmt.Println("failed to create CSV file")
+		}
+
+		csvWriter = csv.NewWriter(categoryFile)
+		defer csvWriter.Flush()
+
+		err = csvWriter.WriteAll(csvCat)
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 
 }
