@@ -51,7 +51,8 @@ func main() {
 		}
 
 		var allTime []Payment
-		var nameBySum map[string]string = make(map[string]string)
+		var debitNameBySum = make(map[string]string)
+		var creditNameBySum = make(map[string]string)
 
 		var allFilesLinesCount int
 		var headerNomenclatureLines int
@@ -98,35 +99,38 @@ func main() {
 					}
 
 					bankPayment = convertTangerineLineToPayment(csvLine)
-					fmt.Println(bankPayment)
 
 				case CIBC:
 					bankPayment = convertCIBCLineToPayment(csvLine)
-					allTime = append(allTime, bankPayment)
 				}
 
 				allTime = append(allTime, bankPayment)
 
-				if totalAmount, exist := nameBySum[bankPayment.Name]; !exist {
-					nameBySum[bankPayment.Name] = bankPayment.GetPaymentAmount()
+				// todo pass into func too
+				var linkedMap map[string]string
+				var currentAmountSum int64
+
+				if bankPayment.Debit != nil {
+					currentAmountSum = bankPayment.Debit.Sum()
+					linkedMap = debitNameBySum
+				} else if bankPayment.Credit != nil {
+					currentAmountSum = bankPayment.Credit.Sum()
+					linkedMap = creditNameBySum
+				}
+
+				if totalAmount, exist := linkedMap[bankPayment.Name]; !exist {
+					linkedMap[bankPayment.Name] = bankPayment.GetPaymentAmount()
 				} else {
 					amount, err := ParseNewAmount(totalAmount)
 					if err != nil {
 						return
 					}
 
-					var currentAmountSum int64
-					if bankPayment.Debit != nil {
-						currentAmountSum = bankPayment.Debit.Sum()
-					} else {
-						currentAmountSum = bankPayment.Credit.Sum()
-					}
-
 					newTotal := amount.Sum() + currentAmountSum
 					newTotalAmount := Amount{}
 					newTotalAmount.SetCent(newTotal)
 
-					nameBySum[bankPayment.Name] = newTotalAmount.ToText()
+					linkedMap[bankPayment.Name] = newTotalAmount.ToText()
 				}
 			}
 		}
@@ -188,8 +192,13 @@ func main() {
 		// ToDo refacto above & below to func
 
 		var csvCat [][]string
-		for name, sum := range nameBySum {
-			csvLine := []string{name, sum}
+		csvCat = append(csvCat, []string{"Name, Debit, Credit"})
+		for name, sum := range debitNameBySum {
+			csvLine := []string{name, sum, ""}
+			csvCat = append(csvCat, csvLine)
+		}
+		for name, sum := range creditNameBySum {
+			csvLine := []string{name, "", sum}
 			csvCat = append(csvCat, csvLine)
 		}
 
@@ -267,7 +276,6 @@ func convertTangerineLineToPayment(csvLine []string) Payment {
 			tangerinePayment.Cashback = cashback
 		}
 	} else if csvLine[1] == CREDIT {
-		fmt.Println(csvLine)
 
 		creditAmount, errAmount := ParseNewAmount(csvLine[4])
 		tangerinePayment.Credit = creditAmount
